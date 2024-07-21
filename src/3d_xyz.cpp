@@ -137,6 +137,9 @@ private:
             marker_array.markers.push_back(marker);
             RCLCPP_INFO(this->get_logger(), "Cluster ID: %d -> Center(%f, %f, %f)", clusterID, avg_x, avg_y, avg_z);
         }
+
+        add2DBoundingBox(marker_array);
+
         marker_pub_->publish(marker_array);
         for (const auto &point : points) {
             if (point.clusterID != -1) {
@@ -152,6 +155,38 @@ private:
         delete_marker.action = visualization_msgs::msg::Marker::DELETEALL;
         marker_array.markers.push_back(delete_marker);
         marker_pub_->publish(marker_array);
+    }
+
+    void add2DBoundingBox(visualization_msgs::msg::MarkerArray &marker_array) {
+        visualization_msgs::msg::Marker bbox_marker;
+        bbox_marker.header.frame_id = "map";
+        bbox_marker.header.stamp = rclcpp::Clock().now();
+        bbox_marker.ns = "bounding_box";
+        bbox_marker.id = 0;
+        bbox_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+        bbox_marker.action = visualization_msgs::msg::Marker::ADD;
+        bbox_marker.scale.x = 0.1; // Line width
+
+        bbox_marker.color.r = 1.0;
+        bbox_marker.color.g = 1.0;
+        bbox_marker.color.b = 1.0;
+        bbox_marker.color.a = 1.0;
+
+        geometry_msgs::msg::Point p1, p2, p3, p4, p5;
+
+        p1.x = 0.0; p1.y = -2.0; p1.z = 0.0;
+        p2.x = 10.0; p2.y = -2.0; p2.z = 0.0;
+        p3.x = 10.0; p3.y = 2.0; p3.z = 0.0;
+        p4.x = 0.0; p4.y = 2.0; p4.z = 0.0;
+        p5 = p1; // Close the loop
+
+        bbox_marker.points.push_back(p1);
+        bbox_marker.points.push_back(p2);
+        bbox_marker.points.push_back(p3);
+        bbox_marker.points.push_back(p4);
+        bbox_marker.points.push_back(p5);
+
+        marker_array.markers.push_back(bbox_marker);
     }
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
