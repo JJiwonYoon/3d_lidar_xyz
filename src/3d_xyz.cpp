@@ -141,11 +141,11 @@ private:
         add2DBoundingBox(marker_array);
 
         marker_pub_->publish(marker_array);
-        for (const auto &point : points) {
-            if (point.clusterID != -1) {
-                RCLCPP_INFO(this->get_logger(), "Point(%f, %f, %f) -> Cluster ID: %d", point.x, point.y, point.z, point.clusterID);
-            }
-        }
+        // for (const auto &point : points) {
+        //     if (point.clusterID != -1) {
+        //         RCLCPP_INFO(this->get_logger(), "Point(%f, %f, %f) -> Cluster ID: %d", point.x, point.y, point.z, point.clusterID);
+        //     }
+        // }
         RCLCPP_INFO(this->get_logger(), "Published %zu markers", marker_array.markers.size());
     }
 
