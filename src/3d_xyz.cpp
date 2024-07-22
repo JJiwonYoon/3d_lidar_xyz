@@ -7,6 +7,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include <std_msgs/msg/float32_multi_array.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_types.h>
@@ -80,6 +81,10 @@ public:
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             "/carla/ego_vehicle/lidar", 10, std::bind(&DbscanNode::pointCloudCallback, this, std::placeholders::_1));
         marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("cluster_markers", 10);
+        cluster_ids_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("cluster_ids", 10);
+        avg_x_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("avg_x", 10);
+        avg_y_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("avg_y", 10);
+        avg_z_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("avg_z", 10);
     }
 
 private:
@@ -141,12 +146,44 @@ private:
         add2DBoundingBox(marker_array);
 
         marker_pub_->publish(marker_array);
-        // for (const auto &point : points) {
-        //     if (point.clusterID != -1) {
-        //         RCLCPP_INFO(this->get_logger(), "Point(%f, %f, %f) -> Cluster ID: %d", point.x, point.y, point.z, point.clusterID);
-        //     }
-        // }
+
+        // Publish separate lists for cluster IDs, avg_x, avg_y, avg_z
+        std_msgs::msg::Float32MultiArray cluster_ids_msg;
+        std_msgs::msg::Float32MultiArray avg_x_msg;
+        std_msgs::msg::Float32MultiArray avg_y_msg;
+        std_msgs::msg::Float32MultiArray avg_z_msg;
+
+        for (const auto &cluster : clusters) {
+            int clusterID = cluster.first;
+            const auto &cluster_points = cluster.second;
+            double avg_x = 0.0, avg_y = 0.0, avg_z = 0.0;
+            for (const auto &point : cluster_points) {
+                avg_x += point.x;
+                avg_y += point.y;
+                avg_z += point.z;
+            }
+            avg_x /= cluster_points.size();
+            avg_y /= cluster_points.size();
+            avg_z /= cluster_points.size();
+
+            // Append data to each message
+            cluster_ids_msg.data.push_back(clusterID);
+            avg_x_msg.data.push_back(avg_x);
+            avg_y_msg.data.push_back(avg_y);
+            avg_z_msg.data.push_back(avg_z);
+        }
+
+        // Publish all messages
+        cluster_ids_pub_->publish(cluster_ids_msg);
+        avg_x_pub_->publish(avg_x_msg);
+        avg_y_pub_->publish(avg_y_msg);
+        avg_z_pub_->publish(avg_z_msg);
+
         RCLCPP_INFO(this->get_logger(), "Published %zu markers", marker_array.markers.size());
+        RCLCPP_INFO(this->get_logger(), "Published cluster IDs with %zu entries", cluster_ids_msg.data.size());
+        RCLCPP_INFO(this->get_logger(), "Published avg_x with %zu entries", avg_x_msg.data.size());
+        RCLCPP_INFO(this->get_logger(), "Published avg_y with %zu entries", avg_y_msg.data.size());
+        RCLCPP_INFO(this->get_logger(), "Published avg_z with %zu entries", avg_z_msg.data.size());
     }
 
     void clearAllMarkers() {
@@ -191,6 +228,10 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr cluster_ids_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr avg_x_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr avg_y_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr avg_z_pub_;
 };
 
 int main(int argc, char **argv) {
