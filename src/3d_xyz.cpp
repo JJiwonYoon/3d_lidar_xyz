@@ -97,8 +97,8 @@ private:
                 points.emplace_back(point.x, point.y, point.z);
             }
         }
-        double eps = 0.5;
-        int minPts = 10;
+        double eps = 0.1;
+        int minPts = 5;
         dbscan(points, eps, minPts);
         visualization_msgs::msg::MarkerArray marker_array;
         std::map<int, visualization_msgs::msg::Marker> cluster_markers;
@@ -132,9 +132,9 @@ private:
             marker.pose.position.y = avg_y;
             marker.pose.position.z = avg_z + 2.0;
             marker.pose.orientation.w = 1.0;
-            marker.scale.x = 0.5;
-            marker.scale.y = 0.5;
-            marker.scale.z = 0.5;
+            marker.scale.x = 0.15;
+            marker.scale.y = 0.15;
+            marker.scale.z = 0.15;
             marker.color.r = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
             marker.color.g = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
             marker.color.b = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
@@ -168,8 +168,8 @@ private:
 
             // Append data to each message
             cluster_ids_msg.data.push_back(clusterID);
-            avg_x_msg.data.push_back(avg_x);
-            avg_y_msg.data.push_back(avg_y);
+            avg_x_msg.data.push_back(avg_x*10);
+            avg_y_msg.data.push_back(avg_y*10);
             avg_z_msg.data.push_back(avg_z);
         }
 
