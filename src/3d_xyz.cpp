@@ -93,11 +93,11 @@ private:
         pcl::fromROSMsg(*msg, cloud);
         vector<Point3D> points;
         for (const auto &point : cloud) {
-            if (point.x > 0.0 && point.x < 10.0 && point.y > -2.0 && point.y < 2.0 && point.z > -2.0 && point.z < 2.0) {
+            if (point.x > 0.0 && point.x < 15.0 && point.y > -2.0 && point.y < 2.0 && point.z > -2.0 && point.z < 2.0) {
                 points.emplace_back(point.x, point.y, point.z);
             }
         }
-        double eps = 0.1;
+        double eps = 0.5;
         int minPts = 5;
         dbscan(points, eps, minPts);
         visualization_msgs::msg::MarkerArray marker_array;
@@ -109,6 +109,12 @@ private:
             }
         }
         clearAllMarkers();
+
+        std_msgs::msg::Float32MultiArray cluster_ids_msg;
+        std_msgs::msg::Float32MultiArray avg_x_msg;
+        std_msgs::msg::Float32MultiArray avg_y_msg;
+        std_msgs::msg::Float32MultiArray avg_z_msg;
+
         for (const auto &cluster : clusters) {
             int clusterID = cluster.first;
             const auto &cluster_points = cluster.second;
@@ -121,6 +127,8 @@ private:
             avg_x /= cluster_points.size();
             avg_y /= cluster_points.size();
             avg_z /= cluster_points.size();
+
+            // Create marker for visualization
             visualization_msgs::msg::Marker marker;
             marker.header.frame_id = "map";
             marker.header.stamp = rclcpp::Clock().now();
@@ -141,37 +149,17 @@ private:
             marker.color.a = 1.0;
             marker_array.markers.push_back(marker);
             RCLCPP_INFO(this->get_logger(), "Cluster ID: %d -> Center(%f, %f, %f)", clusterID, avg_x, avg_y, avg_z);
+
+            // Append data to each message
+            cluster_ids_msg.data.push_back(clusterID);
+            avg_x_msg.data.push_back(avg_x);
+            avg_y_msg.data.push_back(avg_y);
+            avg_z_msg.data.push_back(avg_z);
         }
 
         add2DBoundingBox(marker_array);
 
         marker_pub_->publish(marker_array);
-
-        // Publish separate lists for cluster IDs, avg_x, avg_y, avg_z
-        std_msgs::msg::Float32MultiArray cluster_ids_msg;
-        std_msgs::msg::Float32MultiArray avg_x_msg;
-        std_msgs::msg::Float32MultiArray avg_y_msg;
-        std_msgs::msg::Float32MultiArray avg_z_msg;
-
-        for (const auto &cluster : clusters) {
-            int clusterID = cluster.first;
-            const auto &cluster_points = cluster.second;
-            double avg_x = 0.0, avg_y = 0.0, avg_z = 0.0;
-            for (const auto &point : cluster_points) {
-                avg_x += point.x;
-                avg_y += point.y;
-                avg_z += point.z;
-            }
-            avg_x /= cluster_points.size();
-            avg_y /= cluster_points.size();
-            avg_z /= cluster_points.size();
-
-            // Append data to each message
-            cluster_ids_msg.data.push_back(clusterID);
-            avg_x_msg.data.push_back(avg_x*10);
-            avg_y_msg.data.push_back(avg_y*10);
-            avg_z_msg.data.push_back(avg_z);
-        }
 
         // Publish all messages
         cluster_ids_pub_->publish(cluster_ids_msg);
