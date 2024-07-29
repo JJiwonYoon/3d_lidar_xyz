@@ -136,24 +136,24 @@ private:
             marker.id = clusterID;
             marker.type = visualization_msgs::msg::Marker::SPHERE;
             marker.action = visualization_msgs::msg::Marker::ADD;
-            marker.pose.position.x = avg_x;
-            marker.pose.position.y = avg_y;
+            marker.pose.position.x = avg_x*10;
+            marker.pose.position.y = avg_y*10;
             marker.pose.position.z = avg_z + 2.0;
             marker.pose.orientation.w = 1.0;
-            marker.scale.x = 0.15;
-            marker.scale.y = 0.15;
-            marker.scale.z = 0.15;
-            marker.color.r = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-            marker.color.g = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-            marker.color.b = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+            marker.scale.x = 1.15;
+            marker.scale.y = 1.15;
+            marker.scale.z = 1.15;
+            marker.color.r = 1.0;
+            marker.color.g = 1.0;
+            marker.color.b = 1.0;
             marker.color.a = 1.0;
             marker_array.markers.push_back(marker);
             RCLCPP_INFO(this->get_logger(), "Cluster ID: %d -> Center(%f, %f, %f)", clusterID, avg_x, avg_y, avg_z);
 
             // Append data to each message
             cluster_ids_msg.data.push_back(clusterID);
-            avg_x_msg.data.push_back(avg_x);
-            avg_y_msg.data.push_back(avg_y);
+            avg_x_msg.data.push_back(avg_x*10);
+            avg_y_msg.data.push_back(avg_y*10);
             avg_z_msg.data.push_back(avg_z);
         }
 
@@ -199,10 +199,10 @@ private:
 
         geometry_msgs::msg::Point p1, p2, p3, p4, p5;
 
-        p1.x = 0.0; p1.y = -2.0; p1.z = 0.0;
-        p2.x = 10.0; p2.y = -2.0; p2.z = 0.0;
-        p3.x = 10.0; p3.y = 2.0; p3.z = 0.0;
-        p4.x = 0.0; p4.y = 2.0; p4.z = 0.0;
+        p1.x = 0.0; p1.y = -20.0; p1.z = 0.0;
+        p2.x = 100.0; p2.y = -20.0; p2.z = 0.0;
+        p3.x = 100.0; p3.y = 20.0; p3.z = 0.0;
+        p4.x = 0.0; p4.y = 20.0; p4.z = 0.0;
         p5 = p1; // Close the loop
 
         bbox_marker.points.push_back(p1);
