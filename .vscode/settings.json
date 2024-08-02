@@ -29,6 +29,7 @@
         "deque": "cpp",
         "string": "cpp",
         "vector": "cpp",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "chrono": "cpp"
     }
 }

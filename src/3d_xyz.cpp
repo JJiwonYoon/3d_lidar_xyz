@@ -14,6 +14,7 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/common/distances.h>
 #include <omp.h>
+#include <nav_msgs/msg/odometry.hpp> // Include the header for Odometry messages
 
 using namespace std;
 using namespace pcl;
@@ -22,6 +23,11 @@ struct Point3D {
     double x, y, z;
     int clusterID;
     Point3D(double x, double y, double z) : x(x), y(y), z(z), clusterID(0) {}
+};
+
+struct OdometryData {
+    double x, y;
+    OdometryData() : x(0.0), y(0.0) {}
 };
 
 void expandCluster(vector<Point3D> &points, vector<vector<int>> &neighborhoods, int idx, int clusterID, int minPts) {
@@ -80,6 +86,8 @@ public:
     DbscanNode() : Node("dbscan_node") {
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             "/carla/ego_vehicle/lidar", 10, std::bind(&DbscanNode::pointCloudCallback, this, std::placeholders::_1));
+        odometry_subscription_ = this->create_subscription<nav_msgs::msg::Odometry>(
+            "/carla/ego_vehicle/odometry", 10, std::bind(&DbscanNode::odometryCallback, this, std::placeholders::_1));
         marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("cluster_markers", 10);
         cluster_ids_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("cluster_ids", 10);
         avg_x_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("avg_x", 10);
@@ -93,7 +101,7 @@ private:
         pcl::fromROSMsg(*msg, cloud);
         vector<Point3D> points;
         for (const auto &point : cloud) {
-            if (point.x > 0.0 && point.x < 15.0 && point.y > -2.0 && point.y < 2.0 && point.z > -2.0 && point.z < 2.0) {
+            if (point.x > 0.0 && point.x < 6.0 && point.y > -2.0 && point.y < 2.0 && point.z > -2.0 && point.z < 2.0) {
                 points.emplace_back(point.x, point.y, point.z);
             }
         }
@@ -136,12 +144,12 @@ private:
             marker.id = clusterID;
             marker.type = visualization_msgs::msg::Marker::SPHERE;
             marker.action = visualization_msgs::msg::Marker::ADD;
-            marker.pose.position.x = avg_x*10;
-            marker.pose.position.y = avg_y*10;
+            marker.pose.position.x = (avg_x * 10) + (odometry_data_.x);
+            marker.pose.position.y = (avg_y * 10) + (odometry_data_.y);
             marker.pose.position.z = avg_z + 2.0;
             marker.pose.orientation.w = 1.0;
-            marker.scale.x = 1.15;
-            marker.scale.y = 1.15;
+            marker.scale.x = 2.15;
+            marker.scale.y = 2.15;
             marker.scale.z = 1.15;
             marker.color.r = 1.0;
             marker.color.g = 1.0;
@@ -152,8 +160,8 @@ private:
 
             // Append data to each message
             cluster_ids_msg.data.push_back(clusterID);
-            avg_x_msg.data.push_back(avg_x*10);
-            avg_y_msg.data.push_back(avg_y*10);
+            avg_x_msg.data.push_back(avg_x*10 + (odometry_data_.x));
+            avg_y_msg.data.push_back(avg_y*10 + (odometry_data_.y));
             avg_z_msg.data.push_back(avg_z);
         }
 
@@ -174,6 +182,16 @@ private:
         RCLCPP_INFO(this->get_logger(), "Published avg_z with %zu entries", avg_z_msg.data.size());
     }
 
+    void odometryCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+        // Store the odometry data in the struct
+        odometry_data_.x = msg->pose.pose.position.x * 10;
+        odometry_data_.y = msg->pose.pose.position.y * 10;
+
+        RCLCPP_INFO(this->get_logger(), "Received odometry data: position(%f, %f)", odometry_data_.x, odometry_data_.y);
+
+        // You can add more logic to use the odometry data as needed
+    }
+
     void clearAllMarkers() {
         visualization_msgs::msg::MarkerArray marker_array;
         visualization_msgs::msg::Marker delete_marker;
@@ -190,7 +208,7 @@ private:
         bbox_marker.id = 0;
         bbox_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
         bbox_marker.action = visualization_msgs::msg::Marker::ADD;
-        bbox_marker.scale.x = 0.1; // Line width
+        bbox_marker.scale.x = 1.1; // Line width
 
         bbox_marker.color.r = 1.0;
         bbox_marker.color.g = 1.0;
@@ -199,11 +217,23 @@ private:
 
         geometry_msgs::msg::Point p1, p2, p3, p4, p5;
 
-        p1.x = 0.0; p1.y = -20.0; p1.z = 0.0;
-        p2.x = 100.0; p2.y = -20.0; p2.z = 0.0;
-        p3.x = 100.0; p3.y = 20.0; p3.z = 0.0;
-        p4.x = 0.0; p4.y = 20.0; p4.z = 0.0;
-        p5 = p1; // Close the loop
+        p1.x = odometry_data_.x + 0.0;
+        p1.y = odometry_data_.y - 35.0;
+        p1.z = 0.0;
+
+        p2.x = odometry_data_.x + 70.0;
+        p2.y = odometry_data_.y - 35.0;
+        p2.z = 0.0;
+
+        p3.x = odometry_data_.x + 70.0;
+        p3.y = odometry_data_.y + 35.0;
+        p3.z = 0.0;
+
+        p4.x = odometry_data_.x + 0.0;
+        p4.y = odometry_data_.y + 35.0;
+        p4.z = 0.0;
+
+        p5 = p1; // Closing the loop
 
         bbox_marker.points.push_back(p1);
         bbox_marker.points.push_back(p2);
@@ -215,11 +245,14 @@ private:
     }
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscription_; // New subscription for Odometry
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr cluster_ids_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr avg_x_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr avg_y_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr avg_z_pub_;
+
+    OdometryData odometry_data_; // Instance to store odometry data
 };
 
 int main(int argc, char **argv) {
